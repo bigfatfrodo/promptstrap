@@ -19,6 +19,8 @@ class FileType(str, Enum):
 
 class FileState(str, Enum):
     PLANNED = "planned"
+    NEEDS_UPDATE = "needs_update"
+    NEEDS_SYNC = "needs_sync"
     GENERATED = "generated"
     ERROR = "error"
 
@@ -28,6 +30,7 @@ class File(BaseModel):
     type: FileType
     prompt: str
     state: FileState = FileState.PLANNED
+    content: str = ""
 
 
 class Style(BaseModel):
@@ -46,10 +49,10 @@ class PromptstrapState(BaseModel):
     project_name: Optional[str] = None
     project_description: Optional[str] = None
     repo_name: Optional[str] = None
-    repo_ssh_url: Optional[str] = None
     repo_state: FileState = FileState.PLANNED
-    files: Optional[list[File]] = None
+    files: Optional[list[File]] = []
     style: Optional[Style] = None
     behaviors: Optional[list[str]] = None
     status: Optional[Status] = Status.SUCCESS
+    error_message: Optional[str] = None
     output_folder: str = "agent_output"

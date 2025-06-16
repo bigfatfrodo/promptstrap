@@ -1,13 +1,17 @@
-from typing import Optional
-from langchain.prompts import PromptTemplate
-from langchain_core.output_parsers.json import JsonOutputParser
-from promptstrap.state import PromptstrapState
-from promptstrap.llm import OpenAILLM, MixtralLLM
-from promptstrap.state import FileState, Status
 import os
 import shutil
-from pydantic import BaseModel
+from pprint import pprint
+from typing import Optional
+import subprocess
 import tqdm
+from langchain.prompts import PromptTemplate
+from langchain_core.output_parsers.json import JsonOutputParser
+from langgraph.graph import StateGraph
+from pydantic import BaseModel
+
+from promptstrap.llm import MixtralLLM, OpenAILLM
+from promptstrap.state import FileState, PromptstrapState, Status
+
 llm = OpenAILLM(
     system_prompt="""
                 You are a helpful UI coding assistant, specialized in creating web applications with React, Tailwind CSS, and shadc/ui.
@@ -16,6 +20,7 @@ llm = OpenAILLM(
 
 
 def node_analyze_prompt(state: PromptstrapState) -> PromptstrapState:
+    print("ANALYZE_PROMPT Enter")
 
     json_parser = JsonOutputParser(pydantic_object=PromptstrapState)
 
@@ -24,10 +29,12 @@ def node_analyze_prompt(state: PromptstrapState) -> PromptstrapState:
         Analyze the following prompt: {input}.
         Return a JSON object with a plan on how to implement the prompt as a web application.
         The plan should include:
-        - the project and repository names - the project name must be given, but don't worry about the url right now, just set it to empty string
-        - a complete and exhaustive list of all files with their paths, types and prompt for a generative model to generate each file. This should be a typical file organization for a React web application for this purpose.
+        - the project and repository names
+        - a complete and exhaustive list of all files with their paths (including package.json), types and prompt for a generative model to generate each file. This should be a typical file organization for a React web application for this purpose.
             - the list of files should include source files, assets files, css files, html files, js files, tsx, jpeg, json and other files, as needed
             - if you need to add an image in a component you should include that jpeg image file in the file list, together with its prompt
+            - create the file list in a bottom up order, so that when you will generate the files later, the content of lower level files will be available to the higher level files
+            - leave package.json last, so it will be generated last to include all the dependencies
         - a style object with:
             - a theme (e.g. light, dark, etc)
             - a font (e.g. sans-serif, serif, etc)
@@ -50,6 +57,7 @@ def node_analyze_prompt(state: PromptstrapState) -> PromptstrapState:
 
 
 def node_create_repo(state: PromptstrapState) -> PromptstrapState:
+    print("REPO Enter")
     # TODO: Make this actuall create a repo. For now use an ouput folder
     if state.repo_name is None:
         state.repo_name = "default-repo-name"
@@ -72,7 +80,8 @@ class CreateFileResponse(BaseModel):
     error: Optional[str] = None
 
 
-def node_create_files(state: PromptstrapState) -> PromptstrapState:
+def node_files(state: PromptstrapState) -> PromptstrapState:
+    print("FILES Enter")
     if state.files is None:
         return state
 
@@ -82,6 +91,8 @@ def node_create_files(state: PromptstrapState) -> PromptstrapState:
     if state.repo_name is None:
         raise ValueError("Repository name must be set before creating files.")
 
+    state.error_message = None
+    state.status = Status.SUCCESS
     json_parser = JsonOutputParser(pydantic_object=CreateFileResponse)
     prompt = PromptTemplate.from_template(
         """
@@ -99,17 +110,25 @@ def node_create_files(state: PromptstrapState) -> PromptstrapState:
     )
 
     chain = prompt | llm | json_parser
-    total_files = len([f for f in state.files if f.state == FileState.PLANNED])
+    total_files = len([f for f in state.files if f.state != FileState.GENERATED])
     with tqdm.tqdm(total=total_files, desc="Creating files") as pbar:
         for file in state.files:
-            pbar.update(1)
-            if file.state != FileState.PLANNED:
+            if file.state == FileState.GENERATED:
                 continue
+            pbar.update(1)
 
             folder_path = os.path.join(state.output_folder, state.repo_name)
             file_path = os.path.join(folder_path, file.path)
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
+            if file.state == FileState.NEEDS_SYNC:
+                print(f"File {file.path} will be synced from state.")
+                with open(file_path, "w") as f:
+                    f.write(file.content)
+                file.state = FileState.GENERATED
+                continue
+
+            print(f"Creating file {file_path}")
             with open(file_path, "w") as f:
                 # just write the prompt to the file for now
                 try:
@@ -125,12 +144,126 @@ def node_create_files(state: PromptstrapState) -> PromptstrapState:
                     file.state = FileState.ERROR
                     continue
 
-                if result_json.status == Status.SUCCESS:
-                    f.write(result_json.file_content)
-                    file.state = FileState.GENERATED
+                if result_json["status"] == Status.SUCCESS:
+                    try:
+                        f.write(result_json["file_content"])
+                        file.state = FileState.GENERATED
+                        file.content = result_json["file_content"]
+                    except Exception as e:
+                        print(f"Error writing file {file.path}: {e}")
+                        pprint(result_json)
+                        f.write(f"Error: {e}\n")
+                        file.state = FileState.ERROR
                 else:
-                    f.write(f"Error: {result_json.error}\n")
-                    print(f"Error creating file {file.path}: {result_json.error}")
+                    f.write(f"Error: {result_json['error']}\n")
+                    print(f"Error creating file {file.path}: {result_json['error']}")
                     file.state = FileState.ERROR
 
     return state.model_copy(deep=True)
+
+
+def node_install_dep(state: PromptstrapState) -> PromptstrapState:
+    print("INSTALL_DEP Enter")
+    # call npm install in the repo folder
+    # if this fails, set status to error and capture the error message
+
+    # all files should be in the generated state
+    error_message = ""
+
+    if state.files is None:
+        return state
+
+    if state.status != Status.SUCCESS:
+        # if we enter here with an error, set all files to be updated and try again
+        for file in state.files:
+            file.state = FileState.NEEDS_UPDATE
+        return state
+
+    for file in state.files:
+        if file.state != FileState.GENERATED:
+            error_message += f"File {file.path} is not generated.\n"
+            file.state = FileState.NEEDS_UPDATE
+            state.status = Status.ERROR
+            state.error_message = error_message
+
+    # if after the build we have an error, it is possible that
+    # either some files need to be added
+    # or some files need to be updated
+
+    # run npm install in the repo folder
+    folder_name = os.path.join(state.output_folder, state.repo_name)
+
+    result = subprocess.run(
+        ["npm", "install"],
+        cwd=folder_name,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        error_message += f"Error installing dependencies: \nSTDOUT:\n{result.stdout}\n STDERR:\n{result.stderr}\n"
+        state.status = Status.ERROR
+        state.error_message = error_message
+        print("Npm install failed with errors:\n", error_message)
+
+        parser = JsonOutputParser(pydantic_object=PromptstrapState)
+
+        prompt_template = PromptTemplate.from_template(
+            f"""
+            The npm install command failed with the following error message:
+            {{error_message}}
+            In the JSON object below you will find the list of files currently in the project. 
+            Please analyze the error messages and do the necessary updates in the file content to fix the errors and set the state of those files:
+               - those that need to be update to {FileState.NEEDS_SYNC}.
+               - If you need to add a new file, then feel free to add it to the list and also set the state to {FileState.NEEDS_SYNC}.
+            {{state_structure}}
+
+            The format to be returned:
+            {{format_instructions}}
+            """,
+            partial_variables={
+                "format_instructions": parser.get_format_instructions(),
+            },
+        )
+
+        chain = prompt_template | llm | parser
+        new_state = chain.invoke(
+            {
+                "error_message": error_message,
+                "state_structure": state.model_dump_json(),
+            }
+        )
+
+        # only interested in files update.
+        state.files = new_state.files
+        return state
+
+    else:
+        state.status = Status.SUCCESS
+        state.error_message = None
+        print("npm install completed successfully.")
+
+    return state
+
+
+def NewGraph():
+
+    graph = StateGraph(state_schema=PromptstrapState)
+    graph.add_node("AnalyzePrompt", node_analyze_prompt)
+    graph.add_node("CreateRepo", node_create_repo)
+    graph.add_node("CreateFiles", node_files)
+    graph.add_node("InstallDep", node_install_dep)
+
+    graph.add_edge("AnalyzePrompt", "CreateRepo")
+    graph.add_edge("CreateRepo", "CreateFiles")
+    graph.add_edge("CreateFiles", "InstallDep")
+    graph.add_conditional_edges(
+        "InstallDep",
+        lambda state: "CreateFiles" if state.status != Status.SUCCESS else None,
+    )
+
+    graph.set_entry_point("AnalyzePrompt")
+
+    compiled_graph = graph.compile()
+
+    return compiled_graph
