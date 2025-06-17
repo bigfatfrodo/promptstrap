@@ -12,11 +12,15 @@ from langgraph.graph import StateGraph
 from pydantic import BaseModel
 
 from promptstrap.llm import MixtralLLM, OpenAILLM
-from promptstrap.state import FileState, PromptstrapState, Status
+from promptstrap.state import FileState, PromptstrapState, Status, FileType
+from promptstrap.tools import util_create_image
 
 llm = OpenAILLM(
     system_prompt="""
                 You are an experienced frontend software engineer, specialized in creating web applications with React, Tailwind CSS, and shadc/ui.
+                Coding rules you must follow:
+                - In JS/React files, when you need to reference other files, avoid using paths directly. You should import them and reference the imported names.
+                - You should ensure that the color of the text in input fields contrasts with the background color of the input field.
                 """
 )
 
@@ -99,7 +103,7 @@ def node_files(state: PromptstrapState) -> PromptstrapState:
     json_parser = JsonOutputParser(pydantic_object=CreateFileResponse)
     prompt = PromptTemplate.from_template(
         """
-        Your current task is to create this file: {input},
+        Your current task is to create the file found at {path}: {input},
         The file syntax should be correct and follow the conventions of the specified file type.
         {fromat_instructions}
         If the file is in a format that you cannot generate, you should set the status accordingly and return an error message
@@ -118,6 +122,7 @@ def node_files(state: PromptstrapState) -> PromptstrapState:
         for file in state.files:
             if file.state == FileState.GENERATED:
                 continue
+            pbar.set_description(f"{file.path[-20:]} ({file.state})")
             pbar.update(1)
 
             folder_path = os.path.join(state.output_folder, state.repo_name)
@@ -125,19 +130,28 @@ def node_files(state: PromptstrapState) -> PromptstrapState:
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
             if file.state == FileState.NEEDS_SYNC:
-                print(f"File {file.path} will be synced from state.")
                 with open(file_path, "w") as f:
                     f.write(file.content)
                 file.state = FileState.GENERATED
                 continue
 
-            print(f"Creating file {file_path}")
+            if file.type in [
+                FileType.JPEG_WIDE,
+                FileType.JPEG_TALL,
+                FileType.JPEG_SQUARE,
+            ]:
+                # if the file is an image, create it using the util_create_image function
+                util_create_image(file.type, file.prompt, file_path)
+                file.state = FileState.GENERATED
+                continue
+
             with open(file_path, "w") as f:
                 # just write the prompt to the file for now
                 try:
                     result_json = chain.invoke(
                         {
                             "input": file.prompt,
+                            "path": file.path,
                             "state_structure": state.model_dump_json(),
                         }
                     )
@@ -147,7 +161,7 @@ def node_files(state: PromptstrapState) -> PromptstrapState:
                     file.state = FileState.ERROR
                     continue
 
-                if result_json["status"] == Status.SUCCESS:
+                if result_json.get("status", Status.SUCCESS) == Status.SUCCESS:
                     try:
                         f.write(result_json["file_content"])
                         file.state = FileState.GENERATED

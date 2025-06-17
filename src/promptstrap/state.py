@@ -14,7 +14,9 @@ class FileType(str, Enum):
     JSON = "json"
     MD = "md"
     TXT = "txt"
-    JPEG = "jpeg"
+    JPEG_WIDE = "jpeg_landscape"
+    JPEG_TALL = "jpeg_portrait  "
+    JPEG_SQUARE = "jpeg_square"
 
 
 class FileState(str, Enum):

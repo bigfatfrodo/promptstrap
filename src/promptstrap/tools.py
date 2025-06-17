@@ -1,9 +1,14 @@
+import base64
 import os
 from typing import Optional
 
 import dotenv
+import openai
+import requests
 from github import Github
 from pydantic import BaseModel
+
+from promptstrap.state import FileType
 
 dotenv.load_dotenv()
 
@@ -58,5 +63,23 @@ def get_user_repos() -> list[str]:
     return [repo.name for repo in user.get_repos()]
 
 
-class AnalyzePromptResult(BaseModel):
-    repo_name: str
+def util_create_image(type: FileType, prompt: str, file_path: str):
+    client = openai.Client()
+    if type == FileType.JPEG_WIDE:
+        size = "1792x1024"
+    elif type == FileType.JPEG_TALL:
+        size = "1024x1792"
+    elif type == FileType.JPEG_SQUARE:
+        size = "1024x1024"
+
+    response = client.images.generate(
+        model="dall-e-3",
+        prompt=prompt,
+        size=size,
+    )
+
+    url = response.data[0].url
+    image_response = requests.get(url)
+    if image_response.status_code == 200:
+        with open(file_path, "wb") as f:
+            f.write(image_response.content)
