@@ -1,8 +1,10 @@
 import os
 import shutil
+import subprocess
+from enum import Enum
 from pprint import pprint
 from typing import Optional
-import subprocess
+
 import tqdm
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers.json import JsonOutputParser
@@ -179,6 +181,9 @@ def node_install_dep(state: PromptstrapState) -> PromptstrapState:
             file.state = FileState.NEEDS_UPDATE
         return state
 
+    state.status = Status.SUCCESS
+    state.error_message = None
+
     for file in state.files:
         if file.state != FileState.GENERATED:
             error_message += f"File {file.path} is not generated.\n"
@@ -246,23 +251,108 @@ def node_install_dep(state: PromptstrapState) -> PromptstrapState:
     return state
 
 
+def node_build(state: PromptstrapState) -> PromptstrapState:
+    print("BUILD Enter")
+
+    if state.status != Status.SUCCESS:
+        raise ValueError("Cannot build project with errors.")
+
+    state.status = Status.SUCCESS
+    state.error_message = None
+
+    folder_name = os.path.join(state.output_folder, state.repo_name)
+
+    result = subprocess.run(
+        ["npm", "run", "build"],
+        cwd=folder_name,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        error_message = f"Error building project: \nSTDOUT:\n{result.stdout}\n STDERR:\n{result.stderr}\n"
+        state.status = Status.ERROR
+        state.error_message = error_message
+        print("Build failed with errors:\n", error_message)
+
+        parser = JsonOutputParser(pydantic_object=PromptstrapState)
+
+        prompt_template = PromptTemplate.from_template(
+            f"""
+            The build command failed with the following error message:
+            {{error_message}}
+            In the JSON object below you will find the list of files currently in the project. 
+            Please analyze the error messages and do the necessary updates in the file content to fix the errors and set the state of those files:
+               - those that need to be update to {FileState.NEEDS_SYNC}.
+               - If you need to add a new file, then feel free to add it to the list and also set the state to {FileState.NEEDS_SYNC}.
+            {{state_structure}}
+
+            The format to be returned:
+            {{format_instructions}}
+            """,
+            partial_variables={
+                "format_instructions": parser.get_format_instructions(),
+            },
+        )
+
+        chain = prompt_template | llm | parser
+        new_state = chain.invoke(
+            {
+                "error_message": error_message,
+                "state_structure": state.model_dump_json(),
+            }
+        )
+
+        # only interested in files update.
+        state.files = new_state.files
+        return state
+    else:
+        state.status = Status.SUCCESS
+        state.error_message = None
+        print("Build completed successfully.")
+        return state
+
+
+class GraphNodeNames(str, Enum):
+    ANALYZE_PROMPT = "AnalyzePrompt"
+    CREATE_REPO = "CreateRepo"
+    CREATE_FILES = "CreateFiles"
+    INSTALL_DEP = "InstallDep"
+    BUILD_PROJECT = "BuildProject"
+
+    END = "end"
+
+
 def NewGraph():
 
     graph = StateGraph(state_schema=PromptstrapState)
-    graph.add_node("AnalyzePrompt", node_analyze_prompt)
-    graph.add_node("CreateRepo", node_create_repo)
-    graph.add_node("CreateFiles", node_files)
-    graph.add_node("InstallDep", node_install_dep)
+    graph.add_node(GraphNodeNames.ANALYZE_PROMPT, node_analyze_prompt)
+    graph.add_node(GraphNodeNames.CREATE_REPO, node_create_repo)
+    graph.add_node(GraphNodeNames.CREATE_FILES, node_files)
+    graph.add_node(GraphNodeNames.INSTALL_DEP, node_install_dep)
+    graph.add_node(GraphNodeNames.BUILD_PROJECT, node_build)
 
-    graph.add_edge("AnalyzePrompt", "CreateRepo")
-    graph.add_edge("CreateRepo", "CreateFiles")
-    graph.add_edge("CreateFiles", "InstallDep")
+    graph.add_edge(GraphNodeNames.ANALYZE_PROMPT, GraphNodeNames.CREATE_REPO)
+    graph.add_edge(GraphNodeNames.CREATE_REPO, GraphNodeNames.CREATE_FILES)
+    graph.add_edge(GraphNodeNames.CREATE_FILES, GraphNodeNames.INSTALL_DEP)
     graph.add_conditional_edges(
-        "InstallDep",
-        lambda state: "CreateFiles" if state.status != Status.SUCCESS else None,
+        GraphNodeNames.INSTALL_DEP,
+        lambda state: (
+            GraphNodeNames.CREATE_FILES
+            if state.status != Status.SUCCESS
+            else GraphNodeNames.BUILD_PROJECT
+        ),
+    )
+    graph.add_conditional_edges(
+        GraphNodeNames.BUILD_PROJECT,
+        lambda state: (
+            GraphNodeNames.CREATE_FILES
+            if state.status != Status.SUCCESS
+            else GraphNodeNames.END
+        ),
     )
 
-    graph.set_entry_point("AnalyzePrompt")
+    graph.set_entry_point(GraphNodeNames.ANALYZE_PROMPT)
 
     compiled_graph = graph.compile()
 

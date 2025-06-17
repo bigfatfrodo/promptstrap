@@ -1,9 +1,6 @@
 from promptstrap.llm import MixtralLLM, OpenAILLM
 
-from langgraph.graph import StateGraph
-
-from langgraph.graph import StateGraph
-
+from promptstrap.graph import NewGraph
 from promptstrap.state import PromptstrapState
 from promptstrap.graph import node_analyze_prompt, node_create_repo, node_files
 
@@ -14,17 +11,7 @@ llm = OpenAILLM()
 
 
 def test_nodes():
-    graph = StateGraph(state_schema=PromptstrapState)
-    graph.add_node("AnalyzePrompt", node_analyze_prompt)
-    graph.add_node("CreateRepo", node_create_repo)
-    graph.add_node("CreateFiles", node_files)
-
-    graph.add_edge("AnalyzePrompt", "CreateRepo")
-    graph.add_edge("CreateRepo", "CreateFiles")
-
-    graph.set_entry_point("AnalyzePrompt")
-
-    compiled_graph = graph.compile()
+    compiled_graph = NewGraph()
 
     input_dict = {
         "input": (
