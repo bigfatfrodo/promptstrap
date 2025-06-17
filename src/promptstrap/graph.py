@@ -20,7 +20,12 @@ llm = OpenAILLM(
                 You are an experienced frontend software engineer, specialized in creating web applications with React, Tailwind CSS, and shadc/ui.
                 Coding rules you must follow:
                 - In JS/React files, when you need to reference other files, avoid using paths directly. You should import them and reference the imported names.
-                - You should ensure that the color of the text in input fields contrasts with the background color of the input field.
+                    For example, like this:
+                      import horseImage from '../assets/horse.jpeg;
+                     ... and later, to use it:
+                           <img src={{horseImage}} ... /> 
+
+                - You should ensure that the color of the text in input is not close to the background color of the input field.
                 """
 )
 
@@ -104,7 +109,7 @@ def node_files(state: PromptstrapState) -> PromptstrapState:
     prompt = PromptTemplate.from_template(
         """
         Your current task is to create the file found at {path}: {input},
-        The file syntax should be correct and follow the conventions of the specified file type.
+        The file syntax should be correct and follow the conventions of the specified file type. You should also respect your own coding rules.
         {fromat_instructions}
         If the file is in a format that you cannot generate, you should set the status accordingly and return an error message
         in the corresponding json field.

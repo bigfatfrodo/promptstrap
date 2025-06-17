@@ -32,7 +32,7 @@ class OpenAILLM(Runnable):
     ):
         self.system_prompt = system_prompt
         self.model = model
-        self.llm = ChatOpenAI(model=self.model, temperature=0)
+        self.llm = ChatOpenAI(model=self.model, temperature=0.0)
 
     def invoke(self, input: StringPromptValue, config: Dict[str, Any] = {}) -> str:
         messages = [
