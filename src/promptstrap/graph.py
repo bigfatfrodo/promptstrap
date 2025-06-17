@@ -24,7 +24,7 @@ llm = OpenAILLM(
                       import horseImage from '../assets/horse.jpeg;
                      ... and later, to use it:
                            <img src={{horseImage}} ... /> 
-
+                - Instead of <a> links, use the Link component from react-router-dom
                 - You should ensure that the color of the text in input is not close to the background color of the input field.
                 """
 )
@@ -110,6 +110,7 @@ def node_files(state: PromptstrapState) -> PromptstrapState:
         """
         Your current task is to create the file found at {path}: {input},
         The file syntax should be correct and follow the conventions of the specified file type. You should also respect your own coding rules.
+        You should output the content of the file in the JSON object detailed below. Do not include any other text in the output.
         {fromat_instructions}
         If the file is in a format that you cannot generate, you should set the status accordingly and return an error message
         in the corresponding json field.
