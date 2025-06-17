@@ -16,7 +16,7 @@ from promptstrap.state import FileState, PromptstrapState, Status
 
 llm = OpenAILLM(
     system_prompt="""
-                You are a helpful UI coding assistant, specialized in creating web applications with React, Tailwind CSS, and shadc/ui.
+                You are an experienced frontend software engineer, specialized in creating web applications with React, Tailwind CSS, and shadc/ui.
                 """
 )
 
@@ -36,6 +36,7 @@ def node_analyze_prompt(state: PromptstrapState) -> PromptstrapState:
             - the list of files should include source files, assets files, css files, html files, js files, tsx, jpeg, json and other files, as needed
             - if you need to add an image in a component you should include that jpeg image file in the file list, together with its prompt
             - create the file list in a bottom up order, so that when you will generate the files later, the content of lower level files will be available to the higher level files
+            - add tailwind.config.js and postcss.config.js to the files to be generated.
             - leave package.json last, so it will be generated last to include all the dependencies
         - a style object with:
             - a theme (e.g. light, dark, etc)
@@ -240,7 +241,7 @@ def node_install_dep(state: PromptstrapState) -> PromptstrapState:
         )
 
         # only interested in files update.
-        state.files = new_state.files
+        state.files = new_state["files"]
         return state
 
     else:
@@ -304,7 +305,7 @@ def node_build(state: PromptstrapState) -> PromptstrapState:
         )
 
         # only interested in files update.
-        state.files = new_state.files
+        state.files = new_state["files"]
         return state
     else:
         state.status = Status.SUCCESS
