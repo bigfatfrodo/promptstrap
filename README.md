@@ -30,6 +30,13 @@ input_dict = {
 
 <img width="1708" alt="image" src="https://github.com/user-attachments/assets/e66ea093-9bcd-4b0d-a637-7adda2d80a3e" />
 
+You need to set up the project with `poetry`. 
+```
+% poetry install
+...
+% $(poetry env activate)
+```
+
 To run the example in the `neon-chat` archive just untar it and run the following in the `neon-chat` folder:
 ```
 % npm install
