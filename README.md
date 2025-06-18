@@ -37,7 +37,7 @@ You need to set up the project with `poetry`.
 % $(poetry env activate)
 ```
 
-To run the example in the `neon-chat` archive just untar it and run the following in the `neon-chat` folder:
+To run the generated example in the `neon-chat` archive just untar it and run the following in the `neon-chat` folder:
 ```
 % npm install
 
