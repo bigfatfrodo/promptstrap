@@ -28,11 +28,11 @@ class OpenAILLM(Runnable):
     def __init__(
         self,
         system_prompt: str = "You are a helpful assistant.",
-        model: str = "gpt-4o-mini",
+        model: str = "o3",
     ):
         self.system_prompt = system_prompt
         self.model = model
-        self.llm = ChatOpenAI(model=self.model, temperature=0.0)
+        self.llm = ChatOpenAI(model=self.model)
 
     def invoke(self, input: StringPromptValue, config: Dict[str, Any] = {}) -> str:
         messages = [

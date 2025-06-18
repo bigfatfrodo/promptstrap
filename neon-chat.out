@@ -1,0 +1,152 @@
+ANALYZE_PROMPT Enter
+REPO Enter
+FILES Enter
+package.json (FileState.PLANNED): 100%|██████████| 19/19 [06:36<00:00, 20.84s/it]        
+INSTALL_DEP Enter
+Npm install failed with errors:
+ Error installing dependencies: 
+STDOUT:
+
+ STDERR:
+npm error code EINVALIDPACKAGENAME
+npm error Invalid package name "shadcn/ui" of package "shadcn/ui@latest": name can only contain URL-friendly characters.
+npm error A complete log of this run can be found in: /Users/bigfatfrodo/.npm/_logs/2025-06-18T08_58_13_475Z-debug-0.log
+
+
+FILES Enter
+package.json (FileState.NEEDS_SYNC): 100%|██████████| 3/3 [00:00<00:00, 1133.80it/s]       
+INSTALL_DEP Enter
+
+npm install completed successfully.
+BUILD Enter
+Build failed with errors:
+ Error building project: 
+STDOUT:
+
+> neon-chat@0.1.0 build
+> vite build
+
+vite v5.4.19 building for production...
+✓ 0 modules transformed.
+
+ STDERR:
+x Build failed in 6ms
+error during build:
+Could not resolve entry module "index.html".
+    at getRollupError (file:///Users/bigfatfrodo/code/promptstrap/agent_output/neon-chat/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
+    at error (file:///Users/bigfatfrodo/code/promptstrap/agent_output/neon-chat/node_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at ModuleLoader.loadEntryModule (file:///Users/bigfatfrodo/code/promptstrap/agent_output/neon-chat/node_modules/rollup/dist/es/shared/node-entry.js:21429:20)
+    at async Promise.all (index 0)
+
+
+FILES Enter
+index.html (FileState.NEEDS_SYNC): 100%|██████████| 1/1 [00:00<00:00, 430.10it/s]
+INSTALL_DEP Enter
+
+npm install completed successfully.
+BUILD Enter
+Build failed with errors:
+ Error building project: 
+STDOUT:
+
+> neon-chat@0.1.0 build
+> vite build
+
+vite v5.4.19 building for production...
+transforming...
+
+ STDERR:
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+[Failed to load PostCSS config: Failed to load PostCSS config (searchPath: /Users/bigfatfrodo/code/promptstrap/agent_output/neon-chat): [ReferenceError] module is not defined in ES module scope
+This file is being treated as an ES module because it has a '.js' file extension and '/Users/bigfatfrodo/code/promptstrap/agent_output/neon-chat/package.json' contains "type": "module". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.
+ReferenceError: module is not defined in ES module scope
+This file is being treated as an ES module because it has a '.js' file extension and '/Users/bigfatfrodo/code/promptstrap/agent_output/neon-chat/package.json' contains "type": "module". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.
+    at file:///Users/bigfatfrodo/code/promptstrap/agent_output/neon-chat/postcss.config.js:1:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:274:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)
+    at async importDefault (file:///Users/bigfatfrodo/code/promptstrap/agent_output/neon-chat/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:33759:18)
+    at async Object.search (file:///Users/bigfatfrodo/code/promptstrap/agent_output/neon-chat/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:25915:23)]
+
+Node.js v22.16.0
+
+
+FILES Enter
+tailwind.config.js (FileState.NEEDS_SYNC): 100%|██████████| 2/2 [00:00<00:00, 658.60it/s]
+INSTALL_DEP Enter
+
+npm install completed successfully.
+BUILD Enter
+Build completed successfully.
+{'behaviors': ['responsive',
+               'mobile-friendly',
+               'client-side routing',
+               'random lorem ipsum bot replies',
+               'accessible color contrast',
+               'dark neon theme'],
+ 'error_message': None,
+ 'files': [File(path='index.html', type=<FileType.HTML: 'html'>, prompt='Root HTML file for a Vite + React + Tailwind CSS project. Must contain a <div id="root"></div> for React to mount, include the page title "NeonChat", set viewport meta for responsiveness, and load the application via a module script that points to /src/main.tsx. The body should have class="dark" so the dark-mode styles are active by default.', state=<FileState.GENERATED: 'generated'>, content='<!DOCTYPE html>\n<html lang="en" class="dark">\n  <head>\n    <meta charset="UTF-8" />\n    <link rel="icon" type="image/svg+xml" href="/vite.svg" />\n    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n    <title>NeonChat</title>\n  </head>\n  <body class="min-h-screen">\n    <div id="root"></div>\n    <script type="module" src="/src/main.tsx"></script>\n  </body>\n</html>'),
+           File(path='postcss.config.js', type=<FileType.JS: 'js'>, prompt='PostCSS configuration for a Vite + React + Tailwind project using ESM syntax because package.json contains "type": "module".', state=<FileState.GENERATED: 'generated'>, content='export default {\n  plugins: {\n    tailwindcss: {},\n    autoprefixer: {}\n  }\n};\n'),
+           File(path='tailwind.config.js', type=<FileType.JS: 'js'>, prompt='TailwindCSS configuration in ESM format that enables dark mode via class strategy, scans index.html and all src/**/*.{js,ts,jsx,tsx} files, and extends the theme with the Bright Blue, Dark Teal, and Aqua Orange color palette.', state=<FileState.GENERATED: 'generated'>, content="import { type Config } from 'tailwindcss';\n\n/** @type {Config} */\nconst config = {\n  content: [\n    './index.html',\n    './src/**/*.{js,ts,jsx,tsx}'\n  ],\n  darkMode: 'class',\n  theme: {\n    extend: {\n      colors: {\n        brightBlue: '#1E90FF',\n        darkTeal: '#014F86',\n        aquaOrange: '#FF6B35'\n      }\n    }\n  },\n  plugins: []\n};\n\nexport default config;\n")],
+ 'input': 'Design a web application that allows users to interact with an llm '
+          'by inputting text prompts and receiving messages.\n'
+          'Use a color palette based on Bright Blue, Dark Teal, Aqua Orange. '
+          'These colors should be used for the background, text, and buttons.\n'
+          'The chat components are an input field for user prompt, a submit '
+          'button and a display area for the llm response. In the display '
+          'area,\n'
+          'the llm response should be shown in a chat bubble aligned to the '
+          'left, and the user prompt should be shown in a chat bubble aligned '
+          'to the right.\n'
+          'Also, the chat components should be bounded by a thin round-corner '
+          'border with a shadow effect. The button should be to the left of '
+          'the input field.\n'
+          'The display area should be above the input field and button.\n'
+          'The LLM responses should be mocked with random sequences from the '
+          'lorem ipsum text.\n'
+          'The application should be mobile-friendly and responsive.\n'
+          'The header will display a futuristic image of a city skyline at '
+          'night with neon lights.\n'
+          'The footer will contain links to the terms of service, privacy '
+          'policy, and contact information. Also generate stubs for these '
+          'pages.\n'
+          '.\n'
+          'Return a JSON object with a plan on how to implement the prompt as '
+          'a web application.\n'
+          'The plan should include:\n'
+          '- the project and repository names\n'
+          '- a complete and exhaustive list of all files with their paths '
+          '(including package.json), types and prompt for a generative model '
+          'to generate each file. This should be a typical file organization '
+          'for a React web application for this purpose.\n'
+          '    - the list of files should include source files, assets files, '
+          'css files, html files, js files, tsx, jpeg, json and other files, '
+          'as needed\n'
+          '    - if you need to add an image in a component you should include '
+          'that jpeg image file in the file list, together with its prompt\n'
+          '    - create the file list in a bottom up order, so that when you '
+          'will generate the files later, the content of lower level files '
+          'will be available to the higher level files\n'
+          '    - add tailwind.config.js and postcss.config.js to the files to '
+          'be generated.\n'
+          '    - leave package.json last, so it will be generated last to '
+          'include all the dependencies\n'
+          '- a style object with:\n'
+          '    - a theme (e.g. light, dark, etc)\n'
+          '    - a font (e.g. sans-serif, serif, etc)\n'
+          "    - a color palette (e.g. ['#ffffff', '#000000', '#ff0000'])\n"
+          '- a list of behaviors for the overall application (e.g. responsive, '
+          'mobile-friendly, etc)',
+ 'output_folder': 'agent_output',
+ 'project_description': 'A mobile-friendly React application where users chat '
+                        'with a mocked LLM. The UI follows a futuristic '
+                        'neon-night theme built with Tailwind CSS and '
+                        'shadcn/ui components.',
+ 'project_name': 'NeonChat',
+ 'repo_name': 'neon-chat',
+ 'repo_state': <FileState.GENERATED: 'generated'>,
+ 'status': <Status.SUCCESS: 'success'>,
+ 'style': Style(theme='dark', font='sans-serif', colorPalette=['#1E90FF', '#014F86', '#FF6B35'])}
+ 

@@ -17,7 +17,7 @@ from promptstrap.tools import util_create_image
 
 llm = OpenAILLM(
     system_prompt="""
-                You are an experienced frontend software engineer, specialized in creating web applications with React, Tailwind CSS, and shadc/ui.
+                You are an experienced frontend software engineer, specialized in creating web applications with React, Tailwind CSS, and shadcn/ui.
                 Coding rules you must follow:
                 - In JS/React files, when you need to reference other files, avoid using paths directly. You should import them and reference the imported names.
                     For example, like this:
