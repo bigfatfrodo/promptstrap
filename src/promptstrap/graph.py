@@ -242,6 +242,7 @@ def node_install_dep(state: PromptstrapState) -> PromptstrapState:
             Please analyze the error messages and do the necessary updates in the file content to fix the errors and set the state of those files:
                - those that need to be update to {FileState.NEEDS_SYNC}.
                - If you need to add a new file, then feel free to add it to the list and also set the state to {FileState.NEEDS_SYNC}.
+               - if no change is needed for a file, just leave it as is in the list.
             {{state_structure}}
 
             The format to be returned:
@@ -306,6 +307,7 @@ def node_build(state: PromptstrapState) -> PromptstrapState:
             Please analyze the error messages and do the necessary updates in the file content to fix the errors and set the state of those files:
                - those that need to be update to {FileState.NEEDS_SYNC}.
                - If you need to add a new file, then feel free to add it to the list and also set the state to {FileState.NEEDS_SYNC}.
+               - if no change is needed for a file, just leave it as is in the list.
             {{state_structure}}
 
             The format to be returned:

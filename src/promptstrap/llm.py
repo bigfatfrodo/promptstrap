@@ -28,7 +28,7 @@ class OpenAILLM(Runnable):
     def __init__(
         self,
         system_prompt: str = "You are a helpful assistant.",
-        model: str = "o3",
+        model: str = "gpt-4.1",
     ):
         self.system_prompt = system_prompt
         self.model = model
