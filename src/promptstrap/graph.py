@@ -8,7 +8,7 @@ from typing import Optional
 import tqdm
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers.json import JsonOutputParser
-from langgraph.graph import StateGraph
+from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
 
 from promptstrap.llm import MixtralLLM, OpenAILLM
@@ -336,46 +336,42 @@ def node_build(state: PromptstrapState) -> PromptstrapState:
         return state
 
 
-class GraphNodeNames(str, Enum):
-    ANALYZE_PROMPT = "AnalyzePrompt"
-    CREATE_REPO = "CreateRepo"
-    CREATE_FILES = "CreateFiles"
-    INSTALL_DEP = "InstallDep"
-    BUILD_PROJECT = "BuildProject"
-
-    END = "end"
+ANALYZE_PROMPT = "AnalyzePrompt"
+CREATE_REPO = "CreateRepo"
+CREATE_FILES = "CreateFiles"
+INSTALL_DEP = "InstallDep"
+BUILD_PROJECT = "BuildProject"
 
 
 def NewGraph():
 
     graph = StateGraph(state_schema=PromptstrapState)
-    graph.add_node(GraphNodeNames.ANALYZE_PROMPT, node_analyze_prompt)
-    graph.add_node(GraphNodeNames.CREATE_REPO, node_create_repo)
-    graph.add_node(GraphNodeNames.CREATE_FILES, node_files)
-    graph.add_node(GraphNodeNames.INSTALL_DEP, node_install_dep)
-    graph.add_node(GraphNodeNames.BUILD_PROJECT, node_build)
+    graph.add_node(ANALYZE_PROMPT, node_analyze_prompt)
+    graph.add_node(CREATE_REPO, node_create_repo)
+    graph.add_node(CREATE_FILES, node_files)
+    graph.add_node(INSTALL_DEP, node_install_dep)
+    graph.add_node(BUILD_PROJECT, node_build)
 
-    graph.add_edge(GraphNodeNames.ANALYZE_PROMPT, GraphNodeNames.CREATE_REPO)
-    graph.add_edge(GraphNodeNames.CREATE_REPO, GraphNodeNames.CREATE_FILES)
-    graph.add_edge(GraphNodeNames.CREATE_FILES, GraphNodeNames.INSTALL_DEP)
+    graph.add_edge(ANALYZE_PROMPT, CREATE_REPO)
+    graph.add_edge(CREATE_REPO, CREATE_FILES)
+    graph.add_edge(CREATE_FILES, INSTALL_DEP)
+
     graph.add_conditional_edges(
-        GraphNodeNames.INSTALL_DEP,
-        lambda state: (
-            GraphNodeNames.CREATE_FILES
-            if state.status != Status.SUCCESS
-            else GraphNodeNames.BUILD_PROJECT
-        ),
-    )
-    graph.add_conditional_edges(
-        GraphNodeNames.BUILD_PROJECT,
-        lambda state: (
-            GraphNodeNames.CREATE_FILES
-            if state.status != Status.SUCCESS
-            else GraphNodeNames.END
-        ),
+        INSTALL_DEP,
+        lambda state: state.status,
+        {
+            Status.SUCCESS: BUILD_PROJECT,
+            Status.ERROR: CREATE_FILES,
+        },
     )
 
-    graph.set_entry_point(GraphNodeNames.ANALYZE_PROMPT)
+    graph.add_conditional_edges(
+        BUILD_PROJECT,
+        lambda state: state.status,
+        {Status.SUCCESS: END, Status.ERROR: CREATE_FILES},
+    )
+
+    graph.set_entry_point(ANALYZE_PROMPT)
 
     compiled_graph = graph.compile()
 
