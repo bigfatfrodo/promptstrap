@@ -92,6 +92,12 @@ class CreateFileResponse(BaseModel):
     error: Optional[str] = None
 
 
+def more_files(state: PromptstrapState) -> bool:
+    if state.files is None:
+        return False
+    return len([f for f in state.files if f.state != FileState.GENERATED]) > 0
+
+
 def node_files(state: PromptstrapState) -> PromptstrapState:
     print("FILES Enter")
     if state.files is None:
@@ -123,64 +129,64 @@ def node_files(state: PromptstrapState) -> PromptstrapState:
     )
 
     chain = prompt | llm | json_parser
-    total_files = len([f for f in state.files if f.state != FileState.GENERATED])
-    with tqdm.tqdm(total=total_files, desc="Creating files") as pbar:
-        for file in state.files:
-            if file.state == FileState.GENERATED:
-                continue
-            pbar.set_description(f"{file.path[-20:]} ({file.state})")
-            pbar.update(1)
 
-            folder_path = os.path.join(state.output_folder, state.repo_name)
-            file_path = os.path.join(folder_path, file.path)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    todo_files = [f for f in state.files if f.state != FileState.GENERATED]
+    if len(todo_files) != 0:
+        file = todo_files[0]
+    else:
+        return state
 
-            if file.state == FileState.NEEDS_SYNC:
-                with open(file_path, "w") as f:
-                    f.write(file.content)
+    print(f"{file.path}, {len(todo_files)} / {len(state.files)} files remaining.")
+    folder_path = os.path.join(state.output_folder, state.repo_name)
+    file_path = os.path.join(folder_path, file.path)
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    if file.state == FileState.NEEDS_SYNC:
+        with open(file_path, "w") as f:
+            f.write(file.content)
+        file.state = FileState.GENERATED
+        return state.model_copy(deep=True)
+
+    if file.type in [
+        FileType.JPEG_WIDE,
+        FileType.JPEG_TALL,
+        FileType.JPEG_SQUARE,
+    ]:
+        # if the file is an image, create it using the util_create_image function
+        util_create_image(file.type, file.prompt, file_path)
+        file.state = FileState.GENERATED
+        return state.model_copy(deep=True)
+
+    with open(file_path, "w") as f:
+        # just write the prompt to the file for now
+        try:
+            result_json = chain.invoke(
+                {
+                    "input": file.prompt,
+                    "path": file.path,
+                    "state_structure": state.model_dump_json(),
+                }
+            )
+        except Exception as e:
+            print(f"Error creating file {file.path}: {e}")
+            f.write(f"Error: {e}\n")
+            file.state = FileState.ERROR
+            return state.model_copy(deep=True)
+
+        if result_json.get("status", Status.SUCCESS) == Status.SUCCESS:
+            try:
+                f.write(result_json["file_content"])
                 file.state = FileState.GENERATED
-                continue
-
-            if file.type in [
-                FileType.JPEG_WIDE,
-                FileType.JPEG_TALL,
-                FileType.JPEG_SQUARE,
-            ]:
-                # if the file is an image, create it using the util_create_image function
-                util_create_image(file.type, file.prompt, file_path)
-                file.state = FileState.GENERATED
-                continue
-
-            with open(file_path, "w") as f:
-                # just write the prompt to the file for now
-                try:
-                    result_json = chain.invoke(
-                        {
-                            "input": file.prompt,
-                            "path": file.path,
-                            "state_structure": state.model_dump_json(),
-                        }
-                    )
-                except Exception as e:
-                    print(f"Error creating file {file.path}: {e}")
-                    f.write(f"Error: {e}\n")
-                    file.state = FileState.ERROR
-                    continue
-
-                if result_json.get("status", Status.SUCCESS) == Status.SUCCESS:
-                    try:
-                        f.write(result_json["file_content"])
-                        file.state = FileState.GENERATED
-                        file.content = result_json["file_content"]
-                    except Exception as e:
-                        print(f"Error writing file {file.path}: {e}")
-                        pprint(result_json)
-                        f.write(f"Error: {e}\n")
-                        file.state = FileState.ERROR
-                else:
-                    f.write(f"Error: {result_json['error']}\n")
-                    print(f"Error creating file {file.path}: {result_json['error']}")
-                    file.state = FileState.ERROR
+                file.content = result_json["file_content"]
+            except Exception as e:
+                print(f"Error writing file {file.path}: {e}")
+                pprint(result_json)
+                f.write(f"Error: {e}\n")
+                file.state = FileState.ERROR
+        else:
+            f.write(f"Error: {result_json['error']}\n")
+            print(f"Error creating file {file.path}: {result_json['error']}")
+            file.state = FileState.ERROR
 
     return state.model_copy(deep=True)
 
@@ -354,7 +360,15 @@ def NewGraph():
 
     graph.add_edge(ANALYZE_PROMPT, CREATE_REPO)
     graph.add_edge(CREATE_REPO, CREATE_FILES)
-    graph.add_edge(CREATE_FILES, INSTALL_DEP)
+
+    graph.add_conditional_edges(
+        CREATE_FILES,
+        more_files,
+        {
+            True: CREATE_FILES,
+            False: INSTALL_DEP,
+        },
+    )
 
     graph.add_conditional_edges(
         INSTALL_DEP,
