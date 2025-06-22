@@ -23,7 +23,7 @@ from promptstrap.tools import create_tool_belt
 
 
 system_prompt = """
-            You are an experienced frontend software engineer, specialized in creating web applications with React, Tailwind CSS, and shadcn/ui.
+            You are an experienced frontend software engineer, specialized in creating web applications with React, Tailwind CSS.
             Coding rules you must follow:
             - In JS/React files, when you need to reference other files, avoid using paths directly. You should import them and reference the imported names.
                 For example, like this:
@@ -186,7 +186,7 @@ def node_install_dep(state: PromptstrapState) -> PromptstrapState:
     if result.returncode != 0:
         error_message += f"Error installing dependencies: \nSTDOUT:\n{result.stdout}\n STDERR:\n{result.stderr}\n"
         state.status = Status.ERROR
-        state.dep_result = error_message
+        state.dep_result = error_message.replace("{", "{{").replace("}", "}}")
         print("Npm install failed with errors:\n", error_message)
 
         return state
@@ -215,7 +215,7 @@ def node_build(state: PromptstrapState) -> PromptstrapState:
     if result.returncode != 0:
         error_message = f"Error building project: \nSTDOUT:\n{result.stdout}\n STDERR:\n{result.stderr}\n"
         state.status = Status.ERROR
-        state.build_result = error_message
+        state.build_result = error_message.replace("{", "{{").replace("}", "}}")
         print("Build failed with errors:\n", error_message)
 
         return state

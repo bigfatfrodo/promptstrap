@@ -1,5 +1,6 @@
 from pprint import pprint
 from promptstrap.graph import NewGraph
+import argparse
 
 
 input_dict = {
@@ -107,6 +108,16 @@ Use clear component naming to reflect the UI structure.
 }
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Process a prompt file path.")
+    parser.add_argument(
+        "--prompt-path", type=str, required=True, help="Path to the input prompt file"
+    )
+    args = parser.parse_args()
+
+    if args.prompt_path:
+        with open(args.prompt_path, "r") as prompt_file:
+            input_dict["input"] = prompt_file.read()
+    print("Prompt input:", input_dict["input"])
     graph = NewGraph()
 
     with open("graph.png", "wb") as f:

@@ -46,7 +46,7 @@ class Status(str, Enum):
     ERROR = "error"
 
 
-DEFAULT_TEST_RUNS = 1
+DEFAULT_TEST_RUNS = 2
 
 
 class PromptstrapState(BaseModel):
