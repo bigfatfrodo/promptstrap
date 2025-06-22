@@ -3,7 +3,7 @@
 Promptstrap is an agent that generates simple web apps using React and Tailwind. The reason for its existence is that I don't know React, Tailwind - or any other frontend tech for that matter - and needed a way to create user interfaces for other projects I'm building. 
 The agent is implemented using LangChain and LangGraph. Example usage can be found in the notebook, `tests.ipynb`.
 
-The state graph behind it is pretty simple:
+The state graph behind it:
 
 ![image](https://raw.githubusercontent.com/bigfatfrodo/promptstrap/refs/heads/main/graph.png)
 
