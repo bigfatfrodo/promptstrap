@@ -37,6 +37,16 @@ You need to set up the project with `poetry`.
 % $(poetry env activate)
 ```
 
+Entries needed in a file in top level `.env` file:
+```
+PYTHONPATH=src
+OPENAI_API_KEY=sk-proj-UD......
+```
+How to run `promptstrap`:
+```
+% poetry run python -m promptstrap.promptstrap
+```
+
 To run the generated example in the `neon-chat` archive just untar it and run the following in the `neon-chat` folder:
 ```
 % npm install
@@ -76,3 +86,5 @@ dist/assets/index-CaKHZXJf.js        216.26 kB │ gzip: 70.34 kB
   ➜  Network: use --host to expose
   ➜  press h + enter to show help
 ```
+
+
