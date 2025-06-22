@@ -11,6 +11,7 @@ from typing import List, Optional
 
 import tqdm
 from langchain.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.output_parsers.json import JsonOutputParser
 from langgraph.graph import END, StateGraph
@@ -18,27 +19,27 @@ from pydantic import BaseModel
 
 from promptstrap.llm import MixtralLLM, OpenAILLM
 from promptstrap.state import FileState, FileType, PromptstrapState, Status
-from promptstrap.tools import util_create_image
+from promptstrap.tools import create_tool_belt
 
-llm = OpenAILLM(
-    system_prompt="""
-                You are an experienced frontend software engineer, specialized in creating web applications with React, Tailwind CSS, and shadcn/ui.
-                Coding rules you must follow:
-                - In JS/React files, when you need to reference other files, avoid using paths directly. You should import them and reference the imported names.
-                    For example, like this:
-                      import horseImage from '../assets/horse.jpeg;
-                     ... and later, to use it:
-                           <img src={{horseImage}} ... /> 
-                - Instead of <a> links, use the Link component from react-router-dom
-                - You should ensure that the color of the text in input is not close to the background color of the input field.
-                - You use vite as the build tool for the React application.
-                """
-)
+
+system_prompt = """
+            You are an experienced frontend software engineer, specialized in creating web applications with React, Tailwind CSS, and shadcn/ui.
+            Coding rules you must follow:
+            - In JS/React files, when you need to reference other files, avoid using paths directly. You should import them and reference the imported names.
+                For example, like this:
+                    import horseImage from '../assets/horse.jpeg;
+                    ... and later, to use it:
+                        <img src={{horseImage}} ... /> 
+            - Instead of <a> links, use the Link component from react-router-dom
+            - You should ensure that the color of the text in input is not close to the background color of the input field.
+            - You use vite as the build tool for the React application.
+            """
 
 
 def node_analyze_prompt(state: PromptstrapState) -> PromptstrapState:
     print("ANALYZE_PROMPT Enter")
 
+    llm = OpenAILLM(system_prompt=system_prompt)
     json_parser = JsonOutputParser(pydantic_object=PromptstrapState)
     prompt = PromptTemplate.from_template(
         """
@@ -114,89 +115,33 @@ def node_files(state: PromptstrapState) -> PromptstrapState:
     if state.repo_name is None:
         raise ValueError("Repository name must be set before creating files.")
 
-    json_parser = JsonOutputParser(pydantic_object=CreateFileResponse)
+    llm = OpenAILLM(system_prompt=system_prompt, tools=create_tool_belt(state))
     prompt = PromptTemplate.from_template(
-        """
-        Your current task is to create the file found at {path}: {input},
+        f"""
+        Look at the state structure below and decide which tool you need to invoke to generate the files or solve the issues.
+        You can invoke 10 tools at a time in a single call.
         The file syntax should be correct and follow the conventions of the specified file type. You should also respect your own coding rules.
-        You should output the content of the file in the JSON object detailed below. Do not include any other text in the output.
-        {fromat_instructions}
+
+        Issues to be addressed: 
+        Files that are not in the {FileState.GENERATED} state need to be updated or created.
+        And the following errors: 
+        {state.dep_result}
+        {state.build_result}
+        {state.test_results}
         If the file is in a format that you cannot generate, you should set the status accordingly and return an error message
         in the corresponding json field.
         This file is part of a web application project. Below is the context of the project and how it is built:
-        {state_structure}
+        {{state_structure}}
         """,
-        partial_variables={
-            "fromat_instructions": json_parser.get_format_instructions()
-        },
     )
 
-    chain = prompt | llm | json_parser
+    chain = prompt | llm
 
-    todo_files = [f for f in state.files if f.state != FileState.GENERATED]
-    if len(todo_files) != 0:
-        file = todo_files[0]
-        state.functional_tests_cycles = (
-            # if we update a file and there are no functional test cycles left, set it to 1
-            # to run them once again
-            1
-            if state.functional_tests_cycles == 0
-            else state.functional_tests_cycles
-        )
-    else:
-        return clear_error_status(state)
-
-    print(f"{file.path}, {len(todo_files)} / {len(state.files)} files remaining.")
-    folder_path = os.path.join(state.output_folder, state.repo_name)
-    file_path = os.path.join(folder_path, file.path)
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-    if file.state == FileState.NEEDS_SYNC:
-        with open(file_path, "w") as f:
-            f.write(file.content)
-        file.state = FileState.GENERATED
-        return clear_error_status(state)
-
-    if file.type in [
-        FileType.JPEG_WIDE,
-        FileType.JPEG_TALL,
-        FileType.JPEG_SQUARE,
-    ]:
-        # if the file is an image, create it using the util_create_image function
-        util_create_image(file.type, file.prompt, file_path)
-        file.state = FileState.GENERATED
-        return clear_error_status(state)
-
-    with open(file_path, "w") as f:
-        # just write the prompt to the file for now
-        try:
-            result_json = chain.invoke(
-                {
-                    "input": file.prompt,
-                    "path": file.path,
-                    "state_structure": state.model_dump_json(),
-                }
-            )
-        except Exception as e:
-            print(f"Error creating file {file.path}: {e}")
-            f.write(f"Error: {e}\n")
-            file.state = FileState.ERROR
-            return state
-
-        if result_json.get("status", Status.SUCCESS) == Status.SUCCESS:
-            try:
-                f.write(result_json["file_content"])
-                file.state = FileState.GENERATED
-                file.content = result_json["file_content"]
-            except Exception as e:
-                print(f"Error writing file {file.path}: {e}")
-                pprint(result_json)
-                f.write(f"Error: {e}\n")
-                file.state = FileState.ERROR
-        else:
-            f.write(f"Error: {result_json['error']}\n")
-            print(f"Error creating file {file.path}: {result_json['error']}")
-            file.state = FileState.ERROR
+    result = chain.invoke(
+        {
+            "state_structure": state.model_dump_json(),
+        }
+    )
 
     return clear_error_status(state)
 
@@ -343,8 +288,12 @@ def node_test_project(state: PromptstrapState) -> PromptstrapState:
 
     if state.status != Status.SUCCESS:
         raise ValueError("Cannot test project with errors.")
-
+    llm = ChatOpenAI(model="gpt-4.1", temperature=0.0)
     state.functional_tests_cycles -= 1
+
+    if state.functional_tests_cycles < 0:
+        print("Skipping functional tests, no more cycles left.")
+        return clear_error_status(state)
 
     class UpdateActionList(BaseModel):
         current_state: str
@@ -368,7 +317,7 @@ def node_test_project(state: PromptstrapState) -> PromptstrapState:
                     You will receive a base64-encoded image of the project and a prompt describing the project.
                     Evaluate the current state (the image) and provide instructions to add what is missing from the desired state (the prompt).
                     If the current state is an empty page, add just a single instruction to investigate this bug.
-                    Don't give general advice, focus on the specific elements that need to be added or modified. If there are no changes needed, return an empty list.
+                    Don't give general advice, focus on the specific elements that need to be added or modified. If there are no major changes needed, return an empty list.
 
                     Desired state prompt:
                     {state.input}
@@ -385,8 +334,9 @@ def node_test_project(state: PromptstrapState) -> PromptstrapState:
     result = llm.invoke(messages)
     result = parser.parse(result.content)
 
-    if len(result.instructions) > 0:
-        state.test_results = result.instructions
+    if len(result["instructions"]) > 0:
+        pprint(result)
+        state.test_results = result["instructions"]
         state.status = Status.ERROR
 
     return state
@@ -401,6 +351,7 @@ def clear_error_status(state: PromptstrapState) -> PromptstrapState:
 def node_apply_observations(state: PromptstrapState) -> PromptstrapState:
     print("APPLY_OBSERVATIONS Enter")
 
+    llm = OpenAILLM(system_prompt=system_prompt)
     parser = JsonOutputParser(pydantic_object=PromptstrapState)
     apply_common_prompt = f"""
             In the JSON object below you will find the list of files currently in the project. 
@@ -465,7 +416,7 @@ CREATE_FILES = "CreateFiles"
 INSTALL_DEP = "InstallDep"
 BUILD_PROJECT = "BuildProject"
 TEST_PROJECT = "TestProject"
-APPLY_OBSERVATIONS = "ApplyObservationsToStateFiles"
+# APPLY_OBSERVATIONS = "ApplyObservationsToStateFiles"
 
 
 def NewGraph():
@@ -477,11 +428,11 @@ def NewGraph():
     graph.add_node(INSTALL_DEP, node_install_dep)
     graph.add_node(BUILD_PROJECT, node_build)
     graph.add_node(TEST_PROJECT, node_test_project)
-    graph.add_node(APPLY_OBSERVATIONS, node_apply_observations)
+    #    graph.add_node(APPLY_OBSERVATIONS, node_apply_observations)
 
     graph.add_edge(ANALYZE_PROMPT, CREATE_REPO)
     graph.add_edge(CREATE_REPO, CREATE_FILES)
-    graph.add_edge(APPLY_OBSERVATIONS, CREATE_FILES)
+    #    graph.add_edge(APPLY_OBSERVATIONS, CREATE_FILES)
 
     graph.add_conditional_edges(
         CREATE_FILES,
@@ -497,14 +448,14 @@ def NewGraph():
         lambda state: state.status,
         {
             Status.SUCCESS: BUILD_PROJECT,
-            Status.ERROR: APPLY_OBSERVATIONS,
+            Status.ERROR: CREATE_FILES,
         },
     )
 
     graph.add_conditional_edges(
         BUILD_PROJECT,
         lambda state: state.status,
-        {Status.SUCCESS: TEST_PROJECT, Status.ERROR: APPLY_OBSERVATIONS},
+        {Status.SUCCESS: TEST_PROJECT, Status.ERROR: CREATE_FILES},
     )
 
     graph.add_conditional_edges(
@@ -512,7 +463,7 @@ def NewGraph():
         lambda state: state.status,
         {
             Status.SUCCESS: END,
-            Status.ERROR: APPLY_OBSERVATIONS,
+            Status.ERROR: CREATE_FILES,
         },
     )
 
