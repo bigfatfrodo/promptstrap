@@ -5,7 +5,7 @@ The agent is implemented using LangChain and LangGraph. Example usage can be fou
 
 The state graph behind it is pretty simple:
 
-![image](https://github.com/user-attachments/assets/0540ba95-fb97-46bd-adc1-aaba46406f9f)
+![image](https://raw.githubusercontent.com/bigfatfrodo/promptstrap/refs/heads/main/graph.png)
 
 
 Here's an example UI generated from the prompt in the notebook. Source code for that is included in the `neon-chat.tar.gz` archive.
