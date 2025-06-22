@@ -1,7 +1,7 @@
 from enum import Enum
 
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 
 class FileType(str, Enum):
@@ -46,7 +46,11 @@ class Status(str, Enum):
     ERROR = "error"
 
 
+DEFAULT_TEST_RUNS = 1
+
+
 class PromptstrapState(BaseModel):
+
     input: str
     project_name: Optional[str] = None
     project_description: Optional[str] = None
@@ -58,3 +62,7 @@ class PromptstrapState(BaseModel):
     status: Optional[Status] = Status.SUCCESS
     error_message: Optional[str] = None
     output_folder: str = "agent_output"
+    dep_result: Optional[str] = None
+    build_result: Optional[str] = None
+    test_results: Optional[List[str]] = None
+    functional_tests_cycles: int = DEFAULT_TEST_RUNS
