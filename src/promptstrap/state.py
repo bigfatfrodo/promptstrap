@@ -15,7 +15,7 @@ class FileType(str, Enum):
     MD = "md"
     TXT = "txt"
     JPEG_WIDE = "jpeg_landscape"
-    JPEG_TALL = "jpeg_portrait  "
+    JPEG_TALL = "jpeg_portrait"
     JPEG_SQUARE = "jpeg_square"
 
 
