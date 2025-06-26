@@ -8,7 +8,13 @@
             "name": "promptstrap",
             "type": "debugpy",
             "request": "launch",
-            "module": "promptstrap.promptstrap"
+            "module": "promptstrap.promptstrap",
+            "args": [
+                "--prompt-path",
+                "~/prompt_sudoku.txt",
+                "--project-name",
+                "sudoku-web"
+            ]
         }
     ]
 }

@@ -2,7 +2,6 @@ import base64
 import os
 from typing import Optional
 from langchain.tools import tool
-import dotenv
 import openai
 import requests
 from github import Github
@@ -10,7 +9,6 @@ from pydantic import BaseModel
 
 from promptstrap.state import File, FileType, PromptstrapState, FileState
 
-dotenv.load_dotenv()
 
 
 class RepoCreationResult(BaseModel):
