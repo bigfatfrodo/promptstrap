@@ -6,7 +6,8 @@ from typing import List, Optional
 
 import dotenv
 from pydantic import BaseModel
-from sqlalchemy import Column, DateTime, Integer, String, Text, create_engine
+from sqlalchemy import Column, DateTime, Integer, String, create_engine
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
 
@@ -98,7 +99,7 @@ class PrompstrapStateRow(Base):
     session_id = Column(String(60), index=True)
     timestamp = Column(DateTime, default=func.now(), index=True)
     last_node = Column(String(60), index=True)
-    state = Column(Text, nullable=False)
+    state = Column(MEDIUMTEXT, nullable=False)
 
     def to_state(self):
         state_str = base64.b64decode(str(self.state)).decode()

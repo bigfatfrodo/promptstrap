@@ -30,10 +30,11 @@ class OpenAILLM(Runnable):
         system_prompt: str = "You are a helpful assistant.",
         model: str = "gpt-4.1",
         tools: list = [],
+        temperature=0.3,
     ):
         self.system_prompt = system_prompt
         self.model = model
-        self.llm = ChatOpenAI(model=self.model, temperature=0.3)
+        self.llm = ChatOpenAI(model=self.model, temperature=temperature)
         self.tools = {t.name: t for t in tools}
         self.llm = self.llm.bind_tools(tools)
 

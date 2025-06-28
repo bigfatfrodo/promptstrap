@@ -135,7 +135,9 @@ def node_files(state: PromptstrapState) -> PromptstrapState:
     print(f"===== build_result =====\n{state.build_result}")
     print(f"===== test_results =====\n{state.test_results}")
 
-    llm = OpenAILLM(system_prompt=system_prompt, tools=create_tool_belt(state))
+    llm = OpenAILLM(
+        system_prompt=system_prompt, tools=create_tool_belt(state), temperature=0.6
+    )
     prompt = PromptTemplate.from_template(
         f"""
         Look at the state structure below and decide which tool you need to invoke to generate the files or solve the issues.
